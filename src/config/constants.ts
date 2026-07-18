@@ -1,0 +1,7 @@
+export const CONSTANTS = {
+  JWT_EXPIRES_IN:    '7d',
+  DEFAULT_PAGE_SIZE: 10,
+  MAX_FILE_SIZE_MB:  5,
+  SALT_ROUNDS:       10,
+  MIN_ORDER_AMOUNT:  100,
+};

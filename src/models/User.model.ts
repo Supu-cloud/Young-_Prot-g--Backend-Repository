@@ -20,7 +20,7 @@ const UserSchema = new Schema<IUser>({
 }, { timestamps: true });
 
 UserSchema.set('toJSON', {
-  transform: (_doc, ret) => { delete ret.password; return ret; }
+  transform: (_doc, ret: any) => { delete ret.password; return ret; }
 });
 
 export default mongoose.model<IUser>('User', UserSchema);

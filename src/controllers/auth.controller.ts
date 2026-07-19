@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.model';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
-import { asyncHandler } from '../utils/asyncHandler';
+import asyncHandler from '../utils/asyncHandler';
 
 export const signup = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password, role, phone, address } = req.body;
@@ -31,7 +31,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
-  const user = await User.findById(req.user?.id);
+  const user = await User.findById((req as any).user?.id);
   if (!user) throw new ApiError(404, 'User not found');
   res.json(ApiResponse.ok(user));
 });

@@ -7,13 +7,20 @@ import {
     deleteRestaurant,
     toggleRestaurantStatus,
 } from '../controllers/restaurant.controller';
-import { protect, adminOnly } from '../middleware/auth.middleware';
+import { authorize, protect } from '../middleware/auth.middleware';
+import { UserRole } from '../types/enums';
 
 const router = Router();
 router.get('/', getAllRestaurants);
 router.get('/:id', getRestaurantById);
-router.post('/', protect, adminOnly, createRestaurant);
-router.put('/:id', protect, adminOnly, updateRestaurant);
-router.delete('/:id', protect, adminOnly, deleteRestaurant);
-router.patch('/:id/toggle', protect, adminOnly, toggleRestaurantStatus);
+const restaurantManagers = authorize(UserRole.ADMIN, UserRole.RESTAURANT_OWNER);
+router.post('/', protect, restaurantManagers, createRestaurant);
+router.put('/:id', protect, restaurantManagers, updateRestaurant);
+router.delete('/:id', protect, restaurantManagers, deleteRestaurant);
+router.patch(
+    '/:id/toggle',
+    protect,
+    restaurantManagers,
+    toggleRestaurantStatus
+);
 export default router;

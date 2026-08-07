@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 
 import User, { type IUser } from '../models/User.model';
-import { UserRole } from '../types/enums';
+import { AccountStatus, UserRole } from '../types/enums';
 import { ApiError } from '../utils/ApiError';
 import { createTokenPair } from './token.service';
 
@@ -13,6 +13,10 @@ export interface RegisterUserInput {
     password: string;
     phone?: string;
     address?: string;
+}
+
+export interface RegisterRoleApplicationInput extends RegisterUserInput {
+    role: UserRole.RESTAURANT_OWNER | UserRole.DELIVERY_RIDER;
 }
 
 export interface LoginUserInput {
@@ -73,6 +77,30 @@ export const registerUser = async (input: RegisterUserInput) => {
     return createAuthResult(user);
 };
 
+export const registerRoleApplication = async (
+    input: RegisterRoleApplicationInput
+) => {
+    const name = input.name?.trim();
+    validateCredentials(input.email ?? '', input.password ?? '');
+    if (!name) throw new ApiError(400, 'Name is required');
+    if (input.password.length < MINIMUM_PASSWORD_LENGTH)
+        throw new ApiError(400, 'Password must contain at least 6 characters');
+
+    const email = normalizeEmail(input.email);
+    if (await User.exists({ email }))
+        throw new ApiError(409, 'Email already in use');
+
+    return User.create({
+        name,
+        email,
+        password: await bcrypt.hash(input.password, 10),
+        role: input.role,
+        accountStatus: AccountStatus.PENDING,
+        phone: input.phone?.trim() || undefined,
+        address: input.address?.trim() || undefined,
+    });
+};
+
 export const loginUser = async (input: LoginUserInput) => {
     validateCredentials(input.email ?? '', input.password ?? '');
 
@@ -82,6 +110,12 @@ export const loginUser = async (input: LoginUserInput) => {
 
     if (!user || !(await bcrypt.compare(input.password, user.password))) {
         throw new ApiError(401, 'Invalid email or password');
+    }
+
+    // Existing users created before accountStatus was introduced are treated as
+    // approved. New owner/rider applications always receive an explicit status.
+    if (user.accountStatus && user.accountStatus !== AccountStatus.APPROVED) {
+        throw new ApiError(403, `Account is ${user.accountStatus}`);
     }
 
     return createAuthResult(user);

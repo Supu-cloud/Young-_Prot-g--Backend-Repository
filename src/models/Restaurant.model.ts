@@ -9,6 +9,10 @@ export interface IRestaurant extends Document {
     category: string;
     owner: mongoose.Types.ObjectId;
     isOpen: boolean;
+    operatingHours?: Record<
+        string,
+        { open: string; close: string; closed?: boolean }
+    >;
 }
 
 const RestaurantSchema = new Schema<IRestaurant>(
@@ -21,6 +25,7 @@ const RestaurantSchema = new Schema<IRestaurant>(
         category: { type: String, required: true },
         owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         isOpen: { type: Boolean, default: true },
+        operatingHours: { type: Schema.Types.Mixed },
     },
     { timestamps: true }
 );

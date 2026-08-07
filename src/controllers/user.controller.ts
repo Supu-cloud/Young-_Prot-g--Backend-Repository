@@ -13,9 +13,12 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
 
 export const updateProfile = asyncHandler(
     async (req: Request, res: Response) => {
-        const user = await User.findByIdAndUpdate(req.user?.id, req.body, {
-            new: true,
-        });
+        const { name, phone, address } = req.body;
+        const user = await User.findByIdAndUpdate(
+            req.user?.id,
+            { name, phone, address },
+            { new: true, runValidators: true }
+        );
         if (!user) throw new ApiError(404, 'User not found');
         res.json(ApiResponse.ok(user, 'Profile updated'));
     }

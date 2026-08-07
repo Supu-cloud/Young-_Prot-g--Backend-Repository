@@ -1,2 +1,3 @@
+# IEEE Young Protégé 2026 Food Ordering Backend
 
-created on 2026/7/10
+Food Ordering Project backend for IEEE Young Protégé 2026 — Software Development Group 04.

@@ -45,6 +45,38 @@ JWT_REFRESH_EXPIRES_IN=7d
 
 Generate different random values of at least 32 characters for both JWT secrets. Never commit the real `.env` file.
 
+## Optional service integrations
+
+The service layer includes SMTP email, Cloudinary image uploads, and Stripe payments. Their packages are already listed in `package.json`; after cloning, `npm install` installs them.
+
+To use email, provide these `.env` values from your SMTP provider:
+
+```env
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASSWORD=
+EMAIL_FROM=
+```
+
+To use image uploads, create a Cloudinary account and provide:
+
+```env
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+To use payments, create a Stripe account and provide test-mode keys:
+
+```env
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+```
+
+Use test credentials during development. Never put real credentials in `.env.example` or commit the local `.env` file.
+
 ## Available commands
 
 ```bash

@@ -23,4 +23,12 @@ export const sampleUsers = [
         phone: '0712345678',
         address: 'Gampaha',
     },
+    {
+        name: 'Test Restaurant Owner',
+        email: 'owner@foodapp.com',
+        password: 'test123',
+        role: 'restaurant_owner',
+        phone: '0700000000',
+        address: 'Colombo 05',
+    },
 ];

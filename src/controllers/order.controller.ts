@@ -54,9 +54,10 @@ export const getMyOrders = asyncHandler(async (req: Request, res: Response) => {
 
 export const getOrderById = asyncHandler(
     async (req: Request, res: Response) => {
-        const order = await Order.findById(req.params.id)
-            .populate('customer', 'name email phone')
-            .populate('restaurant', 'name address phone');
+        // Authorize against the raw ObjectId. Populating `customer` first turns
+        // this field into a document, whose string value is "[object Object]".
+        // That caused legitimate customers to be rejected with 403.
+        const order = await Order.findById(req.params.id);
         if (!order) throw new ApiError(404, 'Order not found');
         if (req.user?.role !== UserRole.ADMIN) {
             const isCustomer = order.customer.toString() === req.user?.id;
@@ -68,6 +69,9 @@ export const getOrderById = asyncHandler(
             if (!isCustomer && !isRider && !restaurant)
                 throw new ApiError(403, 'Not authorized');
         }
+
+        await order.populate('customer', 'name email phone');
+        await order.populate('restaurant', 'name address phone');
         res.json(ApiResponse.ok(order));
     }
 );

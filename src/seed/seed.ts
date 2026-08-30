@@ -45,15 +45,16 @@ const seedDatabase = async () => {
         const createdUsers = await User.insertMany(hashedUsers);
         console.log(`✅ ${createdUsers.length} users created!`);
 
-        // Admin user reference
-        const adminUser = createdUsers.find((u) => u.role === 'admin');
         const customers = createdUsers.filter((u) => u.role === 'customer');
+        const restaurantOwner = createdUsers.find(
+            (u) => u.role === 'restaurant_owner'
+        );
 
         // 4. Seed Restaurants
         console.log('\n🍽️  Seeding restaurants...');
         const restaurantsWithOwner = sampleRestaurants.map((r) => ({
             ...r,
-            owner: adminUser?._id,
+            owner: restaurantOwner?._id,
         }));
         const createdRestaurants =
             await Restaurant.insertMany(restaurantsWithOwner);
@@ -66,6 +67,7 @@ const seedDatabase = async () => {
             price: item.price,
             category: item.category,
             description: item.description,
+            imageUrl: item.imageUrl,
             available: true,
             restaurant: createdRestaurants[item.restaurantIndex]._id,
         }));

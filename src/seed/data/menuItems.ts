@@ -8,6 +8,7 @@ export const sampleMenuItems = [
         category: 'Pizza',
         description: 'Classic tomato and cheese',
         restaurantIndex: 0,
+        imageUrl: 'http://localhost:5000/images/food/margherita-pizza.jpg',
     },
     {
         name: 'Pepperoni Pizza',
@@ -15,6 +16,7 @@ export const sampleMenuItems = [
         category: 'Pizza',
         description: 'Loaded with pepperoni',
         restaurantIndex: 0,
+        imageUrl: 'http://localhost:5000/images/food/pepperoni-pizza.jpg',
     },
     {
         name: 'BBQ Chicken Pizza',
@@ -22,6 +24,7 @@ export const sampleMenuItems = [
         category: 'Pizza',
         description: 'Smoky BBQ with grilled chicken',
         restaurantIndex: 0,
+        imageUrl: 'http://localhost:5000/images/food/bbq-chicken-pizza.jpg',
     },
     {
         name: 'Garlic Bread',
@@ -29,6 +32,7 @@ export const sampleMenuItems = [
         category: 'Sides',
         description: 'Toasted garlic bread',
         restaurantIndex: 0,
+        imageUrl: 'http://localhost:5000/images/food/garlic-bread.jpg',
     },
     {
         name: 'Coke',
@@ -36,6 +40,7 @@ export const sampleMenuItems = [
         category: 'Drinks',
         description: 'Ice cold Coca-Cola',
         restaurantIndex: 0,
+        imageUrl: 'http://localhost:5000/images/food/coke.jpg',
     },
 
     // Burger Hub (index 1)

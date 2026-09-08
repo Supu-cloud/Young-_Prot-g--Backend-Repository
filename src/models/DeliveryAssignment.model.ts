@@ -4,7 +4,9 @@ export enum DeliveryAssignmentStatus {
     ASSIGNED = 'assigned',
     ACCEPTED = 'accepted',
     PICKED_UP = 'picked_up',
+    OUT_FOR_DELIVERY = 'out_for_delivery',
     DELIVERED = 'delivered',
+    FAILED = 'failed',
     REJECTED = 'rejected',
 }
 
@@ -15,7 +17,9 @@ export interface IDeliveryAssignment extends Document {
     assignedAt: Date;
     acceptedAt?: Date;
     pickedUpAt?: Date;
+    outForDeliveryAt?: Date;
     deliveredAt?: Date;
+    failedAt?: Date;
     payout: number;
 }
 
@@ -35,7 +39,9 @@ const DeliveryAssignmentSchema = new Schema<IDeliveryAssignment>(
         assignedAt: { type: Date, default: Date.now },
         acceptedAt: Date,
         pickedUpAt: Date,
+        outForDeliveryAt: Date,
         deliveredAt: Date,
+        failedAt: Date,
         payout: { type: Number, required: true, min: 0, default: 0 },
     },
     { timestamps: true }

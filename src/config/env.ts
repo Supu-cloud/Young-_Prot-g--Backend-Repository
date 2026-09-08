@@ -2,7 +2,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const validateEnv = (): void => {
-    const required = ['MONGO_URI', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
+    const required = [
+        'MONGO_URI',
+        'JWT_ACCESS_SECRET',
+        'JWT_REFRESH_SECRET',
+        'GOOGLE_CLIENT_ID',
+    ];
     const missing = required.filter((k) => !process.env[k]);
 
     if (missing.length > 0) {

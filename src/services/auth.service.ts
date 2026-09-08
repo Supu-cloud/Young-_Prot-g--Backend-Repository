@@ -13,6 +13,9 @@ export interface RegisterUserInput {
     password: string;
     phone?: string;
     address?: string;
+    isEmailVerified?: boolean;
+    emailVerificationToken?: string;
+    emailVerificationExpires?: Date;
 }
 
 export interface RegisterRoleApplicationInput extends RegisterUserInput {
@@ -72,9 +75,12 @@ export const registerUser = async (input: RegisterUserInput) => {
         role: UserRole.CUSTOMER,
         phone: input.phone?.trim() || undefined,
         address: input.address?.trim() || undefined,
+        isEmailVerified: input.isEmailVerified ?? false,
+        emailVerificationToken: input.emailVerificationToken,
+        emailVerificationExpires: input.emailVerificationExpires,
     });
 
-    return createAuthResult(user);
+    return user;
 };
 
 export const registerRoleApplication = async (
@@ -98,6 +104,9 @@ export const registerRoleApplication = async (
         accountStatus: AccountStatus.PENDING,
         phone: input.phone?.trim() || undefined,
         address: input.address?.trim() || undefined,
+        isEmailVerified: input.isEmailVerified ?? false,
+        emailVerificationToken: input.emailVerificationToken,
+        emailVerificationExpires: input.emailVerificationExpires,
     });
 };
 
@@ -108,7 +117,11 @@ export const loginUser = async (input: LoginUserInput) => {
         email: normalizeEmail(input.email),
     }).select('+password');
 
-    if (!user || !(await bcrypt.compare(input.password, user.password))) {
+    if (
+        !user ||
+        !user.password ||
+        !(await bcrypt.compare(input.password, user.password))
+    ) {
         throw new ApiError(401, 'Invalid email or password');
     }
 
@@ -119,4 +132,16 @@ export const loginUser = async (input: LoginUserInput) => {
     }
 
     return createAuthResult(user);
+};
+
+export const assertUserCanAuthenticate = (user: IUser): void => {
+    if (!user.isEmailVerified) {
+        throw new ApiError(
+            401,
+            'Please verify your email address before logging in'
+        );
+    }
+    if (user.accountStatus !== AccountStatus.APPROVED) {
+        throw new ApiError(403, `Account is ${user.accountStatus}`);
+    }
 };

@@ -26,19 +26,11 @@ const getTransporter = (): Transporter => {
         return transporter;
     }
 
-    const port = Number(process.env.SMTP_PORT || 587);
-
-    if (!Number.isInteger(port) || port <= 0) {
-        throw new ApiError(500, 'SMTP_PORT must be a positive integer');
-    }
-
     transporter = nodemailer.createTransport({
-        host: requireEmailEnv('SMTP_HOST'),
-        port,
-        secure: process.env.SMTP_SECURE === 'true' || port === 465,
+        service: 'gmail',
         auth: {
-            user: requireEmailEnv('SMTP_USER'),
-            pass: requireEmailEnv('SMTP_PASSWORD'),
+            user: requireEmailEnv('EMAIL_USER'),
+            pass: requireEmailEnv('EMAIL_PASS'),
         },
     });
 
@@ -59,7 +51,7 @@ export const sendEmail = async (input: SendEmailInput): Promise<string> => {
     }
 
     const result = await getTransporter().sendMail({
-        from: requireEmailEnv('EMAIL_FROM'),
+        from: `Foodie <${requireEmailEnv('EMAIL_USER')}>`,
         to: input.to,
         subject: input.subject,
         text: input.text,
@@ -77,4 +69,23 @@ export const sendOrderConfirmation = async (
         to: email,
         subject: 'Order confirmation',
         text: `Your order ${orderId} has been received.`,
+    });
+
+export const sendApplicationApprovalEmail = async (
+    email: string,
+    name: string,
+    role: string
+): Promise<string> =>
+    sendEmail({
+        to: email,
+        subject: 'Your Foodie registration has been approved',
+        text: [
+            `Hello ${name},`,
+            '',
+            `Your Foodie ${role} registration has been approved by the administrator.`,
+            'You can now sign in to your Foodie account.',
+            '',
+            'Thank you,',
+            'The Foodie Team',
+        ].join('\n'),
     });

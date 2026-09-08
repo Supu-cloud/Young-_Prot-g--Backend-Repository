@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IReview extends Document {
     customer: mongoose.Types.ObjectId;
     restaurant: mongoose.Types.ObjectId;
+    order?: mongoose.Types.ObjectId;
     rating: number;
     comment: string;
 }
@@ -15,6 +16,7 @@ const ReviewSchema = new Schema<IReview>(
             ref: 'Restaurant',
             required: true,
         },
+        order: { type: Schema.Types.ObjectId, ref: 'Order' },
         rating: { type: Number, required: true, min: 1, max: 5 },
         comment: { type: String, required: true },
     },

@@ -7,6 +7,8 @@ export interface CreatePaymentInput {
     orderId: string;
     currency?: Stripe.PaymentIntentCreateParams['currency'];
     customerEmail?: string;
+    customerId?: string;
+    idempotencyKey?: string;
 }
 
 export interface PaymentIntentResult {
@@ -26,6 +28,10 @@ const getStripe = (): Stripe => {
 
     if (!secret) {
         throw new ApiError(500, 'STRIPE_SECRET_KEY is not configured');
+    }
+
+    if (!/^(sk|rk)_test_/.test(secret)) {
+        throw new ApiError(503, 'Foodie demo requires Stripe TEST MODE keys');
     }
 
     stripe = new Stripe(secret);
@@ -50,17 +56,24 @@ export const createPaymentIntent = async (
         throw new ApiError(400, 'Order ID is required');
     }
 
-    const intent = await getStripe().paymentIntents.create({
-        amount: input.amount,
-        currency: input.currency || 'lkr',
-        receipt_email: input.customerEmail,
-        metadata: {
-            orderId: input.orderId,
+    const intent = await getStripe().paymentIntents.create(
+        {
+            amount: input.amount,
+            currency: input.currency || 'lkr',
+            receipt_email: input.customerEmail,
+            metadata: {
+                orderId: input.orderId,
+                customerId: input.customerId || '',
+            },
+            automatic_payment_methods: {
+                enabled: true,
+            },
         },
-        automatic_payment_methods: {
-            enabled: true,
-        },
-    });
+        {
+            idempotencyKey:
+                input.idempotencyKey || `foodie-order-${input.orderId}`,
+        }
+    );
 
     if (!intent.client_secret) {
         throw new Error('Stripe did not return a payment client secret');
@@ -71,6 +84,15 @@ export const createPaymentIntent = async (
         clientSecret: intent.client_secret,
         status: intent.status,
     };
+};
+
+export const getPaymentIntent = async (
+    paymentIntentId: string
+): Promise<Stripe.PaymentIntent> => {
+    if (!paymentIntentId.trim()) {
+        throw new ApiError(400, 'Payment intent ID is required');
+    }
+    return getStripe().paymentIntents.retrieve(paymentIntentId);
 };
 
 export const refundPayment = async (

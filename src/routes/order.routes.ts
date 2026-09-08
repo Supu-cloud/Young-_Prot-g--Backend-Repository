@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
     placeOrder,
+    reviewDelivery,
+    updateCustomerReceipt,
     getMyOrders,
     getOrderById,
     getAllOrders,
@@ -12,8 +14,20 @@ import { authorize, protect } from '../middleware/auth.middleware';
 import { UserRole } from '../types/enums';
 
 const router = Router();
-router.post('/', protect, placeOrder);
-router.get('/my', protect, getMyOrders);
+router.post('/', protect, authorize(UserRole.CUSTOMER), placeOrder);
+router.post(
+    '/:id/delivery-review',
+    protect,
+    authorize(UserRole.CUSTOMER),
+    reviewDelivery
+);
+router.patch(
+    '/:id/receipt',
+    protect,
+    authorize(UserRole.CUSTOMER),
+    updateCustomerReceipt
+);
+router.get('/my', protect, authorize(UserRole.CUSTOMER), getMyOrders);
 router.get(
     '/analytics/sales',
     protect,
@@ -33,5 +47,5 @@ router.patch(
     authorize(UserRole.ADMIN, UserRole.RESTAURANT_OWNER),
     updateOrderStatus
 );
-router.patch('/:id/cancel', protect, cancelOrder);
+router.patch('/:id/cancel', protect, authorize(UserRole.CUSTOMER), cancelOrder);
 export default router;

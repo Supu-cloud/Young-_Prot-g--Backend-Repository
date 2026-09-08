@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     getAllRestaurants,
+    getRestaurantOptions,
     getRestaurantById,
     createRestaurant,
     updateRestaurant,
@@ -12,11 +13,17 @@ import { UserRole } from '../types/enums';
 
 const router = Router();
 router.get('/', getAllRestaurants);
+router.get('/options', getRestaurantOptions);
 router.get('/:id', getRestaurantById);
-const restaurantManagers = authorize(UserRole.ADMIN, UserRole.RESTAURANT_OWNER);
+const restaurantManagers = authorize(UserRole.RESTAURANT_OWNER);
 router.post('/', protect, restaurantManagers, createRestaurant);
 router.put('/:id', protect, restaurantManagers, updateRestaurant);
-router.delete('/:id', protect, restaurantManagers, deleteRestaurant);
+router.delete(
+    '/:id',
+    protect,
+    authorize(UserRole.ADMIN, UserRole.RESTAURANT_OWNER),
+    deleteRestaurant
+);
 router.patch(
     '/:id/toggle',
     protect,

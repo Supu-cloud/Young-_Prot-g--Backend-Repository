@@ -1,12 +1,13 @@
 import multer, { FileFilterCallback } from 'multer';
 import { Request } from 'express';
 import { ApiError } from '../utils/ApiError';
+import { IMAGE_MAX_BYTES, IMAGE_TYPES } from '../config/restaurant';
 
-const ALLOWED = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const ALLOWED = IMAGE_TYPES;
 
 export const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: IMAGE_MAX_BYTES },
     fileFilter: (
         _req: Request,
         file: Express.Multer.File,

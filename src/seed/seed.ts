@@ -36,11 +36,22 @@ const seedDatabase = async () => {
 
         // 3. Seed Users
         console.log('\n👤 Seeding users...');
+        const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+        if (!adminPassword)
+            throw new Error(
+                'SEED_ADMIN_PASSWORD is required to seed the administrator'
+            );
         const hashedUsers = await Promise.all(
-            sampleUsers.map(async (user) => ({
-                ...user,
-                password: await bcrypt.hash(user.password, 10),
-            }))
+            sampleUsers.map(async (user) => {
+                const password =
+                    user.role === 'admin' ? adminPassword : user.password;
+                if (!password)
+                    throw new Error(`Seed password missing for ${user.role}`);
+                return {
+                    ...user,
+                    password: await bcrypt.hash(password, 10),
+                };
+            })
         );
         const createdUsers = await User.insertMany(hashedUsers);
         console.log(`✅ ${createdUsers.length} users created!`);
@@ -67,7 +78,19 @@ const seedDatabase = async () => {
             price: item.price,
             category: item.category,
             description: item.description,
-            imageUrl: item.imageUrl,
+            imageUrl:
+                item.imageUrl ||
+                `/images/food/${
+                    item.category === 'Burgers'
+                        ? 'classic-beef-burger.jpg'
+                        : item.category === 'Mains'
+                          ? 'sri_lankan_feast.jpg'
+                          : item.category === 'Sides'
+                            ? 'garlic-bread.jpg'
+                            : item.category === 'Drinks'
+                              ? 'coke.jpg'
+                              : 'sri_lankan_feast.jpg'
+                }`,
             available: true,
             restaurant: createdRestaurants[item.restaurantIndex]._id,
         }));
@@ -165,9 +188,9 @@ const seedDatabase = async () => {
         console.log(`⭐ Reviews:     ${createdReviews.length}`);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('\n📧 Login Credentials:');
-        console.log('   Admin:    admin@foodapp.com    / admin123');
-        console.log('   Customer: vihanga@foodapp.com  / test123');
-        console.log('   Customer: supuni@foodapp.com   / test123');
+        console.log(
+            '   Seeded accounts created. Credentials are intentionally not printed.'
+        );
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     } catch (error) {
         console.error('❌ Seed failed:', error);

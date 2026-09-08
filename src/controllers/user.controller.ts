@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import User from '../models/User.model';
+import { deleteUserAndSafeDependencies } from '../services/user-deletion.service';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -29,6 +30,9 @@ export const changePassword = asyncHandler(
         const { currentPassword, newPassword } = req.body;
         const user = await User.findById(req.user?.id).select('+password');
         if (!user) throw new ApiError(404, 'User not found');
+        if (!user.password) {
+            throw new ApiError(400, 'This account does not have a password');
+        }
         const match = await bcrypt.compare(currentPassword, user.password);
         if (!match) throw new ApiError(400, 'Current password incorrect');
         user.password = await bcrypt.hash(newPassword, 10);
@@ -45,7 +49,11 @@ export const getAllUsers = asyncHandler(
 );
 
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
-    const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) throw new ApiError(404, 'User not found');
-    res.json(ApiResponse.ok(null, 'User deleted'));
+    await deleteUserAndSafeDependencies(req.params.id, req.user?.id);
+    res.json(
+        ApiResponse.ok(
+            null,
+            'User permanently deleted. The email address can now be registered again.'
+        )
+    );
 });

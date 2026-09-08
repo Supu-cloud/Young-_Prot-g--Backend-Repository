@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     reviewRoleApplication,
+    getRiderProfile,
     setRiderAvailability,
     upsertOwnerProfile,
     upsertRiderProfile,
@@ -9,6 +10,12 @@ import { authorize, protect } from '../middleware/auth.middleware';
 import { UserRole } from '../types/enums';
 
 const router = Router();
+router.get(
+    '/rider/profile',
+    protect,
+    authorize(UserRole.DELIVERY_RIDER),
+    getRiderProfile
+);
 router.patch(
     '/applications/:userId',
     protect,

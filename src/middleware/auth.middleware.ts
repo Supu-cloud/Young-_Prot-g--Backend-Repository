@@ -3,6 +3,8 @@ import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 
 import { verifyAccessToken } from '../services/token.service';
 import { UserRole } from '../types/enums';
+import { AccountStatus } from '../types/enums';
+import User from '../models/User.model';
 
 const unauthorized = (res: Response, message: string): void => {
     res.status(401).json({
@@ -11,11 +13,11 @@ const unauthorized = (res: Response, message: string): void => {
     });
 };
 
-export const authenticate = (
+export const authenticate = async (
     req: Request,
     res: Response,
     next: NextFunction
-): void => {
+): Promise<void> => {
     const authorization = req.header('authorization');
 
     if (!authorization) {
@@ -31,7 +33,30 @@ export const authenticate = (
     }
 
     try {
-        req.user = verifyAccessToken(token);
+        const payload = verifyAccessToken(token);
+        const user = await User.findById(payload.id).select(
+            'role accountStatus isEmailVerified'
+        );
+        if (!user) {
+            unauthorized(res, 'Account no longer exists');
+            return;
+        }
+        if (!user.isEmailVerified) {
+            unauthorized(res, 'Email verification is required');
+            return;
+        }
+        if (user.accountStatus !== AccountStatus.APPROVED) {
+            res.status(403).json({
+                success: false,
+                message: `Account is ${user.accountStatus}`,
+            });
+            return;
+        }
+        req.user = {
+            id: user._id.toString(),
+            userId: user._id.toString(),
+            role: user.role,
+        };
         next();
     } catch (error) {
         if (error instanceof TokenExpiredError) {

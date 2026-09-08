@@ -15,7 +15,7 @@ const ensureRestaurantAccess = async (
     if (!restaurant) throw new ApiError(404, 'Restaurant not found');
     if (
         role !== UserRole.ADMIN &&
-        (!userId || restaurant.owner.toString() !== userId)
+        (!userId || !restaurant.owner || restaurant.owner.toString() !== userId)
     )
         throw new ApiError(403, 'You can only manage your own menu');
 };

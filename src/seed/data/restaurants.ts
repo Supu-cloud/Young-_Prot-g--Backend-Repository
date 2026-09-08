@@ -5,7 +5,7 @@ export const sampleRestaurants = [
         address: 'Colombo 03, Sri Lanka',
         phone: '0112345678',
         category: 'Pizza',
-        imageUrl: 'https://via.placeholder.com/300x200?text=Pizza+Palace',
+        imageUrl: '/images/food/margherita-pizza.jpg',
         isOpen: true,
     },
     {
@@ -14,7 +14,7 @@ export const sampleRestaurants = [
         address: 'Colombo 07, Sri Lanka',
         phone: '0119876543',
         category: 'Burgers',
-        imageUrl: 'https://via.placeholder.com/300x200?text=Burger+Hub',
+        imageUrl: '/images/food/classic-beef-burger.jpg',
         isOpen: true,
     },
     {
@@ -23,7 +23,7 @@ export const sampleRestaurants = [
         address: 'Kandy, Sri Lanka',
         phone: '0812345678',
         category: 'Sri Lankan',
-        imageUrl: 'https://via.placeholder.com/300x200?text=Rice+Curry',
+        imageUrl: '/images/food/sri_lankan_feast.jpg',
         isOpen: true,
     },
 ];

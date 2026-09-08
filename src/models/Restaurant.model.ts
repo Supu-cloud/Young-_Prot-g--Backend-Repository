@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { RESTAURANT_CATEGORIES, RESTAURANT_LIMITS } from '../config/restaurant';
 
 export interface IRestaurant extends Document {
     name: string;
@@ -7,7 +8,7 @@ export interface IRestaurant extends Document {
     phone: string;
     imageUrl?: string;
     category: string;
-    owner: mongoose.Types.ObjectId;
+    owner?: mongoose.Types.ObjectId;
     isOpen: boolean;
     operatingHours?: Record<
         string,
@@ -17,13 +18,28 @@ export interface IRestaurant extends Document {
 
 const RestaurantSchema = new Schema<IRestaurant>(
     {
-        name: { type: String, required: true },
-        description: { type: String, required: true },
-        address: { type: String, required: true },
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: RESTAURANT_LIMITS.name,
+        },
+        description: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: RESTAURANT_LIMITS.description,
+        },
+        address: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: RESTAURANT_LIMITS.address,
+        },
         phone: { type: String, required: true },
         imageUrl: { type: String },
-        category: { type: String, required: true },
-        owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        category: { type: String, required: true, enum: RESTAURANT_CATEGORIES },
+        owner: { type: Schema.Types.ObjectId, ref: 'User' },
         isOpen: { type: Boolean, default: true },
         operatingHours: { type: Schema.Types.Mixed },
     },

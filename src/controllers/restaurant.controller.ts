@@ -4,8 +4,17 @@ import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { UserRole } from '../types/enums';
-import User from '../models/User.model';
-import { AccountStatus } from '../types/enums';
+import { validateRestaurantInput } from '../services/restaurant-validation';
+import { validateRestaurantLogo } from '../services/restaurant-logo.service';
+import { saveOwnerRestaurant } from '../services/owner-restaurant.service';
+import {
+    IMAGE_MAX_BYTES,
+    IMAGE_TYPES,
+    RESTAURANT_CATEGORIES,
+    RESTAURANT_DAYS,
+    RESTAURANT_LIMITS,
+    RESTAURANT_PHONE_PATTERN,
+} from '../config/restaurant';
 
 const getOwnedRestaurant = async (
     id: string,
@@ -16,7 +25,7 @@ const getOwnedRestaurant = async (
     if (!restaurant) throw new ApiError(404, 'Restaurant not found');
     if (
         role !== UserRole.ADMIN &&
-        (!userId || restaurant.owner.toString() !== userId)
+        (!userId || !restaurant.owner || restaurant.owner.toString() !== userId)
     )
         throw new ApiError(403, 'You can only manage your own restaurant');
     return restaurant;
@@ -47,32 +56,24 @@ export const getRestaurantById = asyncHandler(
     }
 );
 
+export const getRestaurantOptions = asyncHandler(
+    async (_req: Request, res: Response) => {
+        res.json(
+            ApiResponse.ok({
+                categories: RESTAURANT_CATEGORIES,
+                days: RESTAURANT_DAYS,
+                limits: RESTAURANT_LIMITS,
+                phonePattern: RESTAURANT_PHONE_PATTERN,
+                image: { maxBytes: IMAGE_MAX_BYTES, types: IMAGE_TYPES },
+            })
+        );
+    }
+);
+
 export const createRestaurant = asyncHandler(
     async (req: Request, res: Response) => {
-        const { name, description, address, phone, category, imageUrl } =
-            req.body;
-        if (!name || !description || !address || !phone || !category)
-            throw new ApiError(400, 'All fields required');
-        const owner =
-            req.user?.role === UserRole.ADMIN ? req.body.owner : req.user?.id;
-        if (!owner) throw new ApiError(400, 'Restaurant owner is required');
-        const ownerUser = await User.findOne({
-            _id: owner,
-            role: UserRole.RESTAURANT_OWNER,
-            accountStatus: AccountStatus.APPROVED,
-        });
-        if (!ownerUser)
-            throw new ApiError(400, 'An approved restaurant owner is required');
-        const restaurant = await Restaurant.create({
-            name,
-            description,
-            address,
-            phone,
-            category,
-            imageUrl,
-            owner,
-        });
-        res.status(201).json(ApiResponse.ok(restaurant, 'Restaurant created'));
+        const restaurant = await saveOwnerRestaurant(req.user!.id, req.body);
+        res.json(ApiResponse.ok(restaurant, 'Restaurant saved'));
     }
 );
 
@@ -83,9 +84,13 @@ export const updateRestaurant = asyncHandler(
             req.user?.id,
             req.user?.role
         );
-        const protectedFields = ['owner', '_id'];
-        for (const field of protectedFields) delete req.body[field];
-        Object.assign(restaurant, req.body);
+        const values = validateRestaurantInput(req.body, true);
+        await validateRestaurantLogo(
+            values.imageUrl,
+            req.user!.id,
+            restaurant.imageUrl
+        );
+        Object.assign(restaurant, values);
         await restaurant.save();
         res.json(ApiResponse.ok(restaurant, 'Restaurant updated'));
     }

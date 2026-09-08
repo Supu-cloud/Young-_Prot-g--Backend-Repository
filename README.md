@@ -4,6 +4,8 @@ Backend REST API for the IEEE Young Protege 2026 Food Ordering Project, develope
 
 The application provides authentication, user management, restaurant and menu management, order processing, and restaurant reviews. It is built with TypeScript, Express, MongoDB, and Mongoose.
 
+Project creation date recorded in the original README: July 10, 2026.
+
 ## Table of contents
 
 - [Project overview](#project-overview)
@@ -23,6 +25,7 @@ The application provides authentication, user management, restaurant and menu ma
 - [Frontend integration](#frontend-integration)
 - [Security notes](#security-notes)
 - [Current limitations](#current-limitations)
+- [Team workflow](#team-workflow)
 
 ## Project overview
 
@@ -93,11 +96,11 @@ This is not currently an event-driven or microservice architecture. It is a sing
 - Password hashing with `bcryptjs`
 - Role-based authorization
 
-### Optional integrations
+### Integrations and uploads
 
-- Nodemailer for SMTP email
+- Nodemailer for Gmail email
 - Cloudinary for image storage
-- Stripe for payment processing
+- Stripe for test-mode payment processing
 - Multer for validating uploaded image files
 
 ### Development tools
@@ -116,13 +119,14 @@ This is not currently an event-driven or microservice architecture. It is a sing
 - Password hashing before database storage
 - JWT access and refresh token generation
 - Protected routes using Bearer authentication
-- Customer and administrator authorization
+- Role-based authorization with current account approval and email-verification checks
+- Google sign-in, email verification, verification resend, and refresh sessions
 - User profile management
 - Restaurant CRUD operations
 - Menu-item CRUD operations
 - Menu-item availability management
 - Order placement and order-history retrieval
-- Administrative order-status management
+- Owner and administrator order-status management
 - Order cancellation
 - Restaurant review creation and deletion
 - Persistent customer carts with server-calculated totals
@@ -131,7 +135,9 @@ This is not currently an event-driven or microservice architecture. It is a sing
 - Delivery assignment, progress tracking, rider availability, and earnings summaries
 - Development database seeding
 - MongoDB connection checking
-- SMTP, Cloudinary, and Stripe service foundations
+- Gmail verification and approval emails, local restaurant-logo uploads, and Cloudinary utilities
+- Idempotent Stripe test checkout and payment confirmation
+- Administrator dashboards, reports, and restaurant-owner assignment
 
 ## Project structure
 
@@ -147,12 +153,15 @@ This is not currently an event-driven or microservice architecture. It is a sing
 |   |-- middleware/            Auth, errors, uploads, and validation
 |   |-- models/                Mongoose models
 |   |-- routes/                API route definitions
+|   |-- scripts/               Administrator provisioning and menu import
 |   |-- seed/                  Development seed data
 |   |-- services/              Business logic and external integrations
 |   |-- types/                 Shared TypeScript types and enums
 |   |-- utils/                 API response, error, logger, and async helpers
 |   `-- server.ts              Application entry point
-|-- tests/                     Test placeholders
+|-- docs/                      Order lifecycle implementation notes
+|-- public/                    Static images, logos, videos, and uploaded logos
+|-- tests/                     Order lifecycle tests, readiness checks, and demo scripts
 |-- .env.example               Environment-variable template
 |-- eslint.config.mjs          ESLint configuration
 |-- test-db.ts                 MongoDB connection check
@@ -169,7 +178,7 @@ Install the following software first:
 
 - Node.js
 - npm
-- MongoDB Community Server or a MongoDB Atlas database
+- MongoDB Atlas or a MongoDB deployment with replica-set/sharded transaction support for delivery assignment and settlement
 - Git
 
 ### Clone and install
@@ -204,6 +213,7 @@ Never commit the real `.env` file.
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/food-ordering-db
 
+GOOGLE_CLIENT_ID=
 JWT_ACCESS_SECRET=
 JWT_REFRESH_SECRET=
 JWT_ACCESS_EXPIRES_IN=15m
@@ -220,16 +230,16 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 Run the command twice and use a different result for each secret. Do not publish the generated values.
 
-### Optional email variables
+The startup validator requires `MONGO_URI`, both JWT secrets, and `GOOGLE_CLIENT_ID`. Add `GOOGLE_CLIENT_ID` to your local `.env`; it is currently missing from `.env.example`. `PORT` and JWT lifetime/issuer/audience settings have defaults.
+
+### Email configuration
 
 ```env
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=
-SMTP_PASSWORD=
-EMAIL_FROM=
+EMAIL_USER=
+EMAIL_PASS=
 ```
+
+The Nodemailer service uses Gmail. Configure these credentials to send signup verification, resend-verification, and application-approval emails. Password login requires a verified email; owner and rider accounts also require administrator approval.
 
 ### Optional Cloudinary variables
 
@@ -246,7 +256,7 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 ```
 
-The optional credentials can remain empty until their services are connected to API endpoints.
+Cloudinary credentials are optional for the existing utility service; owner logo uploads use local storage. Stripe test credentials are required for payment endpoints. `STRIPE_WEBHOOK_SECRET` is reserved for the signature-verification utility; no webhook route is mounted.
 
 ## Running the project
 
@@ -289,7 +299,9 @@ npm run db:check
 npm run seed
 ```
 
-Run the seed command only against a development database after reviewing the seed data.
+**The seed script deletes all existing users, restaurants, menu items, orders, and reviews before inserting sample data.** Use only a disposable development database. Set `SEED_ADMIN_PASSWORD` before running it; the script checks this after deleting data.
+
+To provision an administrator without seeding, set `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`, then run `npm run create-admin`. Review `src/scripts/create-admin.ts` before use.
 
 ### Production build
 
@@ -302,19 +314,29 @@ TypeScript source files are compiled from `src/` into `dist/`.
 
 ### Available scripts
 
-| Command                | Purpose                                              |
-| ---------------------- | ---------------------------------------------------- |
-| `npm run dev`          | Start the TypeScript development server with Nodemon |
-| `npm run build`        | Clean and compile the production JavaScript output   |
-| `npm start`            | Start the compiled application from `dist/server.js` |
-| `npm run seed`         | Insert development seed data                         |
-| `npm run db:check`     | Connect to MongoDB, ping it, and disconnect          |
-| `npm run typecheck`    | Check TypeScript without producing build files       |
-| `npm run lint`         | Check TypeScript source with ESLint                  |
-| `npm run lint:fix`     | Automatically fix supported ESLint issues            |
-| `npm run format`       | Format supported files with Prettier                 |
-| `npm run format:check` | Check formatting without modifying files             |
-| `npm run verify`       | Run ESLint and TypeScript checks                     |
+| Command                | Purpose                                                     |
+| ---------------------- | ----------------------------------------------------------- |
+| `npm run dev`          | Start the TypeScript development server with Nodemon        |
+| `npm run build`        | Clean and compile the production JavaScript output          |
+| `npm start`            | Start the compiled application from `dist/server.js`        |
+| `npm run seed`         | Reset selected collections and insert development seed data |
+| `npm run db:check`     | Connect to MongoDB, ping it, and disconnect                 |
+| `npm run typecheck`    | Check TypeScript without producing build files              |
+| `npm run lint`         | Check TypeScript source with ESLint                         |
+| `npm run lint:fix`     | Automatically fix supported ESLint issues                   |
+| `npm run format`       | Format supported files with Prettier                        |
+| `npm run format:check` | Check formatting without modifying files                    |
+| `npm run verify`       | Run ESLint and TypeScript checks                            |
+
+Additional scripts:
+
+| Command                                      | Purpose                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| `npm run create-admin`                       | Provision an administrator from environment variables                          |
+| `npm run import:sweet-ceylon`                | Import the Sweet Ceylon menu; review the script before modifying database data |
+| `npm run test:orders`                        | Run order lifecycle tests with mocked persistence and Stripe                   |
+| `npm run check:order-demo`                   | Check database, Stripe test mode, and demo data prerequisites                  |
+| `npm run demo:orders -- --create-test-order` | Run the opt-in demo, creating a Stripe test payment and database order         |
 
 ## API endpoints
 
@@ -323,10 +345,13 @@ All application routes use the `/api` prefix.
 Legend:
 
 - Public: no token required
-- Customer: valid access token required
+- Authenticated: valid access token and an approved, email-verified account
+- Customer: authenticated user with the customer role
 - Owner/Rider/Admin: valid access token with the stated role required
 
-### Authentication
+#`GET /api/reviews` and `GET /api/reviews/featured` expose public feedback lists. The same review router is also mounted at `/api/feedbacks`. Review deletion requires ownership.
+
+## Authentication
 
 | Method | Endpoint                            | Access        | Purpose                                      |
 | ------ | ----------------------------------- | ------------- | -------------------------------------------- |
@@ -378,15 +403,26 @@ Login response structure:
 
 Public signup always creates a customer account. Administrator accounts must not be created by accepting an untrusted role from a public request.
 
+Additional public authentication endpoints (refresh requires a refresh token in the request body):
+
+| Method | Endpoint                               | Purpose                                              |
+| ------ | -------------------------------------- | ---------------------------------------------------- |
+| GET    | `/api/auth/verify-email?token=<token>` | Verify an email address                              |
+| POST   | `/api/auth/resend-verification`        | Resend the verification email                        |
+| POST   | `/api/auth/google`                     | Authenticate with a Google ID token                  |
+| POST   | `/api/auth/refresh`                    | Validate a refresh token and return a new token pair |
+
+Signup, login, Google authentication, refresh, and resend routes are rate limited.
+
 ### Users
 
-| Method | Endpoint              | Access         | Purpose                     |
-| ------ | --------------------- | -------------- | --------------------------- |
-| GET    | `/api/users/profile`  | Customer/Admin | Get the current profile     |
-| PUT    | `/api/users/profile`  | Customer/Admin | Update the current profile  |
-| PATCH  | `/api/users/password` | Customer/Admin | Change the current password |
-| GET    | `/api/users`          | Admin          | List users                  |
-| DELETE | `/api/users/:id`      | Admin          | Delete a user               |
+| Method | Endpoint              | Access        | Purpose                     |
+| ------ | --------------------- | ------------- | --------------------------- |
+| GET    | `/api/users/profile`  | Authenticated | Get the current profile     |
+| PUT    | `/api/users/profile`  | Authenticated | Update the current profile  |
+| PATCH  | `/api/users/password` | Authenticated | Change the current password |
+| GET    | `/api/users`          | Admin         | List users                  |
+| DELETE | `/api/users/:id`      | Admin         | Delete a user               |
 
 ### Restaurants
 
@@ -394,10 +430,12 @@ Public signup always creates a customer account. Administrator accounts must not
 | ------ | ----------------------------- | ----------- | -------------------------- |
 | GET    | `/api/restaurants`            | Public      | List restaurants           |
 | GET    | `/api/restaurants/:id`        | Public      | Get one restaurant         |
-| POST   | `/api/restaurants`            | Owner/Admin | Create a restaurant        |
-| PUT    | `/api/restaurants/:id`        | Owner/Admin | Update an owned restaurant |
+| POST   | `/api/restaurants`            | Owner       | Create a restaurant        |
+| PUT    | `/api/restaurants/:id`        | Owner       | Update an owned restaurant |
 | DELETE | `/api/restaurants/:id`        | Owner/Admin | Delete an owned restaurant |
-| PATCH  | `/api/restaurants/:id/toggle` | Owner/Admin | Toggle restaurant status   |
+| PATCH  | `/api/restaurants/:id/toggle` | Owner       | Toggle restaurant status   |
+
+`GET /api/restaurants/options` provides public restaurant form options. Owner operations enforce restaurant ownership.
 
 ### Menu items
 
@@ -412,15 +450,17 @@ Public signup always creates a customer account. Administrator accounts must not
 
 ### Orders
 
-| Method | Endpoint                      | Access         | Purpose                             |
-| ------ | ----------------------------- | -------------- | ----------------------------------- |
-| POST   | `/api/orders`                 | Customer/Admin | Place an order                      |
-| GET    | `/api/orders/my`              | Customer/Admin | Get the current user's orders       |
-| GET    | `/api/orders/all`             | Admin          | List all orders                     |
-| GET    | `/api/orders/:id`             | Customer/Admin | Get an authorized order             |
-| PATCH  | `/api/orders/:id/status`      | Admin          | Update an order status              |
-| PATCH  | `/api/orders/:id/cancel`      | Customer/Admin | Cancel an authorized order          |
-| GET    | `/api/orders/analytics/sales` | Owner/Admin    | Get delivered-order sales analytics |
+| Method | Endpoint                      | Access        | Purpose                             |
+| ------ | ----------------------------- | ------------- | ----------------------------------- |
+| POST   | `/api/orders`                 | Customer      | Place an order                      |
+| GET    | `/api/orders/my`              | Customer      | Get the current user's orders       |
+| GET    | `/api/orders/all`             | Owner/Admin   | List orders within role scope       |
+| GET    | `/api/orders/:id`             | Authenticated | Get an authorized order             |
+| PATCH  | `/api/orders/:id/status`      | Owner/Admin   | Update an order status              |
+| PATCH  | `/api/orders/:id/cancel`      | Customer      | Cancel an authorized order          |
+| GET    | `/api/orders/analytics/sales` | Owner/Admin   | Get delivered-order sales analytics |
+
+Additional customer routes: `POST /api/orders/:id/delivery-review` submits a delivery review, and `PATCH /api/orders/:id/receipt` updates receipt confirmation. Order detail access is checked against the caller's role and relationship to the order.
 
 ### Cart
 
@@ -441,6 +481,8 @@ Public signup always creates a customer account. Administrator accounts must not
 | PUT    | `/api/roles/rider/profile`        | Rider  | Save rider and verification details |
 | PATCH  | `/api/roles/rider/availability`   | Rider  | Set online/offline status           |
 
+`GET /api/roles/rider/profile` retrieves the authenticated rider profile.
+
 ### Deliveries
 
 | Method | Endpoint                                 | Access      | Purpose                       |
@@ -453,17 +495,51 @@ Public signup always creates a customer account. Administrator accounts must not
 
 ### Payments
 
-| Method | Endpoint                               | Access   | Purpose                        |
-| ------ | -------------------------------------- | -------- | ------------------------------ |
-| POST   | `/api/payments/orders/:orderId/intent` | Customer | Create a Stripe Payment Intent |
+| Method | Endpoint                                | Access   | Purpose                                                    |
+| ------ | --------------------------------------- | -------- | ---------------------------------------------------------- |
+| POST   | `/api/payments/orders/:orderId/intent`  | Customer | Create a Stripe Payment Intent                             |
+| POST   | `/api/payments/orders/:orderId/confirm` | Customer | Verify payment and mark an existing order paid             |
+| POST   | `/api/payments/checkout`                | Customer | Create or recover a server-priced checkout attempt         |
+| POST   | `/api/payments/checkout/:id/complete`   | Customer | Verify Stripe success and create or recover one paid order |
+
+### Owner portal
+
+All `/api/owner` routes require the restaurant-owner role.
+
+| Method   | Endpoint                                     | Purpose                               |
+| -------- | -------------------------------------------- | ------------------------------------- |
+| GET      | `/api/owner/dashboard`                       | Owner dashboard                       |
+| GET, PUT | `/api/owner/restaurant`                      | Retrieve or save the owned restaurant |
+| POST     | `/api/owner/restaurant/logo`                 | Upload a logo as multipart image data |
+| GET      | `/api/owner/menu`, `/api/owner/menu/:id`     | Owner menu views                      |
+| GET      | `/api/owner/orders`, `/api/owner/orders/:id` | Owner order views                     |
+| GET      | `/api/owner/analytics`                       | Owner sales and earnings              |
+
+### Administration
+
+All `/api/admin` routes require the administrator role.
+
+| Method        | Endpoint                                                                    | Purpose                     |
+| ------------- | --------------------------------------------------------------------------- | --------------------------- |
+| GET           | `/api/admin/dashboard`, `/api/admin/analytics`                              | Platform summaries          |
+| GET           | `/api/admin/applications`, `/api/admin/applications/:id`                    | Review applications         |
+| PATCH         | `/api/admin/applications/:id/approve`, `/api/admin/applications/:id/reject` | Decide applications         |
+| GET           | `/api/admin/users`, `/api/admin/users/:id`                                  | User views                  |
+| DELETE        | `/api/admin/users/:id`                                                      | Delete a user               |
+| PATCH         | `/api/admin/users/:id/status`                                               | Update account status       |
+| GET           | `/api/admin/restaurants`, `/api/admin/restaurants/:id`                      | Restaurant views            |
+| GET           | `/api/admin/restaurant-owners/assignable`                                   | List assignable owners      |
+| PATCH, DELETE | `/api/admin/restaurants/:id/owner`                                          | Assign or unassign an owner |
+| GET           | `/api/admin/orders`, `/api/admin/orders/:id`                                | Order views                 |
+| GET           | `/api/admin/reports/:type`                                                  | Generate a report           |
 
 ### Reviews
 
-| Method | Endpoint                     | Access         | Purpose                       |
-| ------ | ---------------------------- | -------------- | ----------------------------- |
-| GET    | `/api/reviews/:restaurantId` | Public         | List reviews for a restaurant |
-| POST   | `/api/reviews`               | Customer/Admin | Add a review                  |
-| DELETE | `/api/reviews/:id`           | Customer/Admin | Delete an authorized review   |
+| Method | Endpoint                     | Access        | Purpose                       |
+| ------ | ---------------------------- | ------------- | ----------------------------- |
+| GET    | `/api/reviews/:restaurantId` | Public        | List reviews for a restaurant |
+| POST   | `/api/reviews`               | Authenticated | Add a review                  |
+| DELETE | `/api/reviews/:id`           | Authenticated | Delete an authorized review   |
 
 ## Authentication
 
@@ -494,7 +570,7 @@ Protected request header:
 Authorization: Bearer <access-token>
 ```
 
-The backend validates the signature, expiration, issuer, audience, token type, user ID, and user role.
+The backend validates the signature, expiration, issuer, audience, token type, and user ID, then reads the current role, approval status, and email-verification state from MongoDB. `POST /api/auth/refresh` accepts `{ "refreshToken": "<refresh-token>" }` and issues a new token pair after checking the account. Previously issued refresh tokens are not persisted or revoked.
 
 ### Authorization
 
@@ -543,10 +619,13 @@ The backend always performs authorization checks. Hiding an admin button in the 
 Order statuses:
 
 ```text
-placed -> confirmed -> preparing -> out_for_delivery -> delivered
+placed -> confirmed -> preparing -> ready_for_pickup -> rider_assigned
+       -> picked_up -> out_for_delivery -> delivered
 ```
 
-An order can also become `cancelled`.
+Additional statuses include legacy `accepted`, `declined`, `delivery_failed`, and `cancelled`. Customer cancellation is allowed only from `placed`; transition rules are centralized in `src/services/order-lifecycle.ts`.
+
+Orders also record lifecycle timestamps, customer receipt confirmation, delivery reviews, and internal settlement amounts. `CheckoutAttempt` stores a server-priced snapshot before a paid order is created. See [order lifecycle notes](docs/order-lifecycle.md) for checkout recovery, assignment, and settlement details; its live-demo observations describe the state at the time of that report.
 
 Payment statuses are `pending`, `paid`, and `failed`.
 
@@ -581,23 +660,21 @@ Payment statuses are `pending`, `paid`, and `failed`.
 
 ### Email service
 
-`email.service.ts` supports SMTP connection verification, general email sending, and order-confirmation messages.
-
-SMTP credentials are optional during core development. The email service is implemented but is not yet connected to an order or account-verification endpoint.
+`email.service.ts` centralizes Gmail transport, connection verification, general email, and order-confirmation helpers. Signup verification, verification resend, and application-approval notifications are connected to account flows.
 
 ### Upload service
 
 `upload.middleware.ts` accepts JPG, PNG, and WebP files up to 5 MB in memory. `upload.service.ts` can upload those buffers to Cloudinary and delete Cloudinary images.
 
-The Cloudinary service is implemented but is not yet connected to the restaurant or menu routes.
+The Cloudinary utility is not connected to restaurant/menu routes. The owner logo endpoint instead validates image signatures and stores files in `public/restaurants/`, served under `/images/restaurants/`. Preserve that directory across deployments when using local uploads.
 
 ### Payment service
 
 `payment.service.ts` can create Stripe Payment Intents, request refunds, and verify Stripe webhook signatures.
 
-`POST /api/payments/orders/:orderId/intent` creates a Payment Intent using the authenticated customer's order and a total calculated by the backend. A verified raw-body Stripe webhook is still required before production use so successful or failed payments can update the order payment status safely.
+`POST /api/payments/checkout` creates or recovers a server-priced checkout and Stripe test intent. Completion verifies Stripe status, test mode, currency, amount, and metadata before creating or recovering the paid order. Existing order-specific intent and confirmation endpoints remain available.
 
-Stripe account availability depends on the business country. The team must confirm that the chosen payment provider supports its legal business location before production deployment.
+Delivery assignment and settlement use MongoDB transactions. Earnings are internal accounting records; no bank payouts or Stripe Connect transfers are implemented. A mounted raw-body webhook endpoint and automatic refunds are still absent; interrupted payments rely on checkout recovery.
 
 ## Code-quality tools
 
@@ -639,7 +716,9 @@ npm run format:check
 npm run db:check
 ```
 
-The `tests/` files are currently placeholders, and no automated test runner is configured in `package.json`. Unit and integration testing is therefore an identified next step rather than a completed feature.
+Run `npm run test:orders` for the Node.js test-runner suite covering order transitions, checkout recovery, payment validation, authorization, assignment, settlement, and delivery reviews. Persistence and Stripe are mocked; these checks do not prove live database transaction behavior. Older auth/menu/restaurant/order test files remain placeholders.
+
+`npm run check:order-demo` checks live prerequisites. The opt-in `npm run demo:orders -- --create-test-order` creates a real database order and Stripe test payment; it requires suitable approved accounts, restaurant ownership, menu data, and transaction support. Review [the lifecycle report](docs/order-lifecycle.md) before running it.
 
 Recommended future test coverage:
 
@@ -700,14 +779,14 @@ The frontend must know the API contract—URLs, methods, request bodies, respons
 
 ## Current limitations
 
-- Refresh-token rotation, persistence, revocation, and logout are not implemented.
-- Email-account verification and password-reset flows are not implemented.
-- Email and Cloudinary services are not yet exposed through API endpoints.
-- Stripe Payment Intent creation is implemented, but raw-body webhook handling and automatic payment-status updates are not.
+- Refresh issues a new token pair, but server-side refresh-token persistence, reuse detection, revocation, and logout are not implemented.
+- Password-reset flows are not implemented.
+- Cloudinary utilities are not connected to API routes; logo uploads use local storage.
+- Stripe test checkout and confirmation are implemented, but webhook reconciliation, automatic refunds, and external payouts are not.
 - Real-time WebSocket/SSE notifications are not implemented; clients must currently poll order and delivery endpoints.
 - Menu categories are stored on menu items; separate category CRUD and ordering are not implemented.
 - Rider verification document URLs can be stored, but multipart document upload is not connected to the rider-profile route.
-- Automated unit and integration tests are not configured.
+- Automated order tests use mocks; broader authentication/CRUD coverage and live integration verification remain necessary.
 - API schemas are not yet published through Swagger/OpenAPI.
 - CORS currently requires additional restriction to the deployed frontend origin before production use.
 
